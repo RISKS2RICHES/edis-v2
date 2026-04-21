@@ -1,3 +1,5 @@
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root {
@@ -170,4 +172,100 @@ input::placeholder, textarea::placeholder { color: #4a5568; }
 }
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
+}
+
+/* Slide panel */
+.slide-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  background: #0d1117;
+  border-left: 1px solid #1e2530;
+  z-index: 400;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.slide-panel.slide-panel-left {
+  left: 0;
+  right: auto;
+  border-left: none;
+  border-right: 1px solid #1e2530;
+  transform: translateX(-100%);
+}
+.slide-panel.slide-panel-open {
+  transform: translateX(0);
+}
+.slide-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 350;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.slide-panel-overlay.slide-panel-overlay-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile page layout */
+@media (max-width: 768px) {
+  .page-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    z-index: 400 !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .page-sidebar.page-sidebar-open {
+    transform: translateX(0);
+  }
+  .page-right-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 300px !important;
+    max-width: 90vw !important;
+    z-index: 400 !important;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .page-right-panel.page-right-panel-open {
+    transform: translateX(0);
+  }
+}
+
+/* Mobile toolbar fab buttons */
+.mobile-fab {
+  position: fixed;
+  bottom: 68px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #0d1117;
+  border: 1px solid #1e2530;
+  color: #8b97a8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.mobile-fab:hover {
+  background: #1e2530;
+  color: #e8edf2;
+}
+.mobile-fab-left { left: 12px; }
+.mobile-fab-right { right: 12px; }
+@media (min-width: 769px) {
+  .mobile-fab { display: none !important; }
 }

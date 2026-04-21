@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, ExternalLink, AlertTriangle, Clock, Globe, Filter } from 'lucide-react';
+import { RefreshCw, ExternalLink, Clock, Globe, X, Menu } from 'lucide-react';
 import { WAR_ZONES } from '../lib/constants';
 
 interface NewsItem {
@@ -12,14 +12,6 @@ interface NewsItem {
   region: string;
   summary: string;
 }
-
-const CONFLICT_FEEDS = [
-  { name: 'Reuters World', url: 'https://feeds.reuters.com/reuters/worldNews', category: 'WORLD' },
-  { name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', category: 'WORLD' },
-  { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'MIDDLE EAST' },
-  { name: 'Kyiv Independent', url: 'https://kyivindependent.com/feed/', category: 'UKRAINE' },
-  { name: 'ACLED', url: 'https://acleddata.com/feed/', category: 'CONFLICT' },
-];
 
 const REGIONS = ['ALL', 'EUROPE', 'MIDDLE EAST', 'AFRICA', 'ASIA', 'AMERICAS'];
 
@@ -123,6 +115,7 @@ export default function ConflictsPage() {
   const [loading, setLoading] = useState(false);
   const [selectedConflict, setSelectedConflict] = useState<typeof WAR_ZONES[0] | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const filteredNews = news.filter(n => {
     if (region !== 'ALL' && n.region !== region) return false;
@@ -146,15 +139,21 @@ export default function ConflictsPage() {
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {/* Left: Active conflicts */}
-      <div style={{
-        width: '260px', flexShrink: 0,
+      {/* Mobile sidebar overlay */}
+      <div 
+        className={`slide-panel-overlay ${mobileSidebarOpen ? 'slide-panel-overlay-open' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+      />
+
+      {/* Left: Active conflicts - Desktop */}
+      <div className="hide-mobile" style={{
+        width: 260, flexShrink: 0,
         background: '#0d1117', borderRight: '1px solid #1e2530',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
-      }} className="hidden md:flex">
+      }}>
         <div className="intel-panel-header">
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ff3b3b', animation: 'pulse-live 1.5s infinite' }} />
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff3b3b', animation: 'pulse-live 1.5s infinite' }} />
           Active Conflicts ({WAR_ZONES.length})
         </div>
         <div style={{ overflow: 'auto', flex: 1 }}>
@@ -171,20 +170,67 @@ export default function ConflictsPage() {
                 borderLeft: selectedConflict?.id === z.id ? '2px solid #ff3b3b' : '2px solid transparent',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '600', color: '#e8edf2' }}>{z.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#e8edf2' }}>{z.name}</span>
                 <span style={{
-                  fontSize: '8px', padding: '1px 5px', borderRadius: '2px',
+                  fontSize: 8, padding: '1px 5px', borderRadius: 2,
                   background: z.severity === 'CRITICAL' ? '#3d0000' : z.severity === 'HIGH' ? '#2d1200' : '#1a1a00',
                   color: z.severity === 'CRITICAL' ? '#ff3b3b' : z.severity === 'HIGH' ? '#ff8c00' : '#ffb800',
                   border: `1px solid ${z.severity === 'CRITICAL' ? '#ff3b3b' : z.severity === 'HIGH' ? '#ff8c00' : '#ffb800'}`,
-                  letterSpacing: '0.1em', fontWeight: '700',
+                  letterSpacing: '0.1em', fontWeight: 700,
                 }}>
                   {z.severity}
                 </span>
               </div>
-              <div style={{ fontSize: '10px', color: '#8b97a8' }}>Since {z.startDate}</div>
-              <div style={{ fontSize: '10px', color: '#4a5568', marginTop: '2px' }}>{z.casualties} est. casualties</div>
+              <div style={{ fontSize: 10, color: '#8b97a8' }}>Since {z.startDate}</div>
+              <div style={{ fontSize: 10, color: '#4a5568', marginTop: 2 }}>{z.casualties} est. casualties</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Left: Active conflicts - Mobile slide-out */}
+      <div 
+        className={`slide-panel slide-panel-left hide-desktop ${mobileSidebarOpen ? 'slide-panel-open' : ''}`}
+        style={{ width: 300, maxWidth: '85vw' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #1e2530' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b3b', animation: 'pulse-live 1.5s infinite' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#e8edf2' }}>Active Conflicts ({WAR_ZONES.length})</span>
+          </div>
+          <button onClick={() => setMobileSidebarOpen(false)} style={{ background: 'none', border: 'none', color: '#8b97a8', cursor: 'pointer', padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+        <div style={{ overflow: 'auto', flex: 1 }}>
+          {WAR_ZONES.map(z => (
+            <button
+              key={z.id}
+              onClick={() => { setSelectedConflict(z); setMobileSidebarOpen(false); }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '14px 16px',
+                background: selectedConflict?.id === z.id ? '#1e2530' : 'transparent',
+                border: 'none', borderBottom: '1px solid #1e2530',
+                cursor: 'pointer',
+                borderLeft: selectedConflict?.id === z.id ? '3px solid #ff3b3b' : '3px solid transparent',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#e8edf2' }}>{z.name}</span>
+                <span style={{
+                  fontSize: 9, padding: '2px 6px', borderRadius: 2,
+                  background: z.severity === 'CRITICAL' ? '#3d0000' : z.severity === 'HIGH' ? '#2d1200' : '#1a1a00',
+                  color: z.severity === 'CRITICAL' ? '#ff3b3b' : z.severity === 'HIGH' ? '#ff8c00' : '#ffb800',
+                  border: `1px solid ${z.severity === 'CRITICAL' ? '#ff3b3b' : z.severity === 'HIGH' ? '#ff8c00' : '#ffb800'}`,
+                  letterSpacing: '0.1em', fontWeight: 700,
+                }}>
+                  {z.severity}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: '#8b97a8' }}>Since {z.startDate}</div>
+              <div style={{ fontSize: 11, color: '#4a5568', marginTop: 3 }}>{z.casualties} est. casualties</div>
             </button>
           ))}
         </div>
@@ -198,22 +244,24 @@ export default function ConflictsPage() {
             background: '#111519', borderBottom: '1px solid #1e2530',
             padding: '12px 16px', flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#ff3b3b', marginBottom: '6px' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#ff3b3b', marginBottom: 6 }}>
                   {selectedConflict.name}
                 </div>
-                <p style={{ fontSize: '12px', color: '#8b97a8', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+                <p style={{ fontSize: 12, color: '#8b97a8', margin: '0 0 10px 0', lineHeight: 1.5 }}>
                   {selectedConflict.summary}
                 </p>
-                <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: '2px', padding: '8px 10px' }}>
-                  <div style={{ fontSize: '9px', color: '#4a5568', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 2, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
                     Latest Intelligence
                   </div>
-                  <div style={{ fontSize: '12px', color: '#e8edf2' }}>{selectedConflict.latestUpdate}</div>
+                  <div style={{ fontSize: 12, color: '#e8edf2', lineHeight: 1.5 }}>{selectedConflict.latestUpdate}</div>
                 </div>
               </div>
-              <button onClick={() => setSelectedConflict(null)} style={{ background: 'none', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: '18px', flexShrink: 0 }}>×</button>
+              <button onClick={() => setSelectedConflict(null)} style={{ background: 'none', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 20, flexShrink: 0, padding: 4 }}>
+                <X size={18} />
+              </button>
             </div>
           </div>
         )}
@@ -221,31 +269,41 @@ export default function ConflictsPage() {
         {/* Toolbar */}
         <div style={{
           background: '#0d1117', borderBottom: '1px solid #1e2530',
-          padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0,
+          padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
           flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '180px' }}>
+          {/* Mobile menu button */}
+          <button 
+            className="hide-desktop"
+            onClick={() => setMobileSidebarOpen(true)}
+            style={{ background: '#1e2530', border: '1px solid #2d3748', borderRadius: 2, color: '#8b97a8', cursor: 'pointer', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}
+          >
+            <Menu size={14} />
+            <span>Conflicts</span>
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 150 }}>
             <Globe size={13} color="#4a5568" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search conflicts & intelligence..."
-              style={{ background: 'none !important', border: 'none !important', outline: 'none', color: '#e8edf2', fontSize: '12px', flex: 1, boxShadow: 'none !important' }}
+              placeholder="Search..."
+              style={{ background: 'none', border: 'none', outline: 'none', color: '#e8edf2', fontSize: 12, flex: 1, minWidth: 80 }}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {REGIONS.map(r => (
               <button
                 key={r}
                 onClick={() => setRegion(r)}
                 style={{
-                  padding: '3px 8px', fontSize: '9px', letterSpacing: '0.08em',
+                  padding: '4px 8px', fontSize: 9, letterSpacing: '0.08em',
                   background: region === r ? '#1e6fff' : '#1e2530',
                   border: `1px solid ${region === r ? '#1e6fff' : '#2d3748'}`,
                   color: region === r ? '#fff' : '#8b97a8',
-                  borderRadius: '2px', cursor: 'pointer',
-                  textTransform: 'uppercase', fontWeight: '600',
+                  borderRadius: 2, cursor: 'pointer',
+                  textTransform: 'uppercase', fontWeight: 600,
                 }}
               >
                 {r}
@@ -253,69 +311,69 @@ export default function ConflictsPage() {
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '9px', color: '#4a5568', fontFamily: 'JetBrains Mono, monospace' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="hide-mobile" style={{ fontSize: 9, color: '#4a5568', fontFamily: 'JetBrains Mono, monospace' }}>
               {lastUpdated.toTimeString().substring(0, 8)}
             </span>
             <button
               onClick={refresh}
               style={{
-                background: '#1e2530', border: '1px solid #2d3748', borderRadius: '2px',
-                color: '#8b97a8', cursor: 'pointer', padding: '3px 8px',
-                display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px',
+                background: '#1e2530', border: '1px solid #2d3748', borderRadius: 2,
+                color: '#8b97a8', cursor: 'pointer', padding: '4px 8px',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 10,
               }}
             >
-              <RefreshCw size={10} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+              <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
           </div>
         </div>
 
         {/* News feed */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
-          <div style={{ display: 'grid', gap: '6px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
             {filteredNews.map(item => (
               <div key={item.id} className="intel-panel" style={{ padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
                       <span style={{
-                        fontSize: '8px', padding: '1px 5px', borderRadius: '2px',
+                        fontSize: 8, padding: '2px 6px', borderRadius: 2,
                         background: '#1e2530', color: severityColor(item.category),
                         border: `1px solid ${severityColor(item.category)}40`,
-                        letterSpacing: '0.1em', fontWeight: '700', textTransform: 'uppercase',
+                        letterSpacing: '0.1em', fontWeight: 700, textTransform: 'uppercase',
                       }}>
                         {item.category}
                       </span>
-                      <span style={{ fontSize: '9px', color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                         {item.region}
                       </span>
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#e8edf2', lineHeight: '1.4', marginBottom: '6px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#e8edf2', lineHeight: 1.4, marginBottom: 6 }}>
                       {item.title}
                     </div>
-                    <p style={{ fontSize: '11px', color: '#8b97a8', lineHeight: '1.6', margin: 0 }}>
+                    <p style={{ fontSize: 12, color: '#8b97a8', lineHeight: 1.6, margin: 0 }}>
                       {item.summary}
                     </p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #1e2530' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '10px', color: '#1e6fff', fontWeight: '600' }}>{item.source}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <Clock size={9} color="#4a5568" />
-                      <span style={{ fontSize: '9px', color: '#4a5568', fontFamily: 'JetBrains Mono, monospace' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid #1e2530' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, color: '#1e6fff', fontWeight: 600 }}>{item.source}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Clock size={10} color="#4a5568" />
+                      <span style={{ fontSize: 10, color: '#4a5568', fontFamily: 'JetBrains Mono, monospace' }}>
                         {timeAgo(item.published)}
                       </span>
                     </div>
                   </div>
-                  <a href={item.url} target="_blank" rel="noreferrer" style={{ color: '#4a5568', display: 'flex' }}>
-                    <ExternalLink size={11} />
+                  <a href={item.url} target="_blank" rel="noreferrer" style={{ color: '#4a5568', display: 'flex', padding: 4 }}>
+                    <ExternalLink size={12} />
                   </a>
                 </div>
               </div>
             ))}
             {filteredNews.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#4a5568', fontSize: '12px' }}>
+              <div style={{ textAlign: 'center', padding: 40, color: '#4a5568', fontSize: 12 }}>
                 No results found for current filters
               </div>
             )}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import { MAPBOX_TOKEN, WAR_ZONES, LOCATION_TYPES } from '../lib/constants'
-import { Layers, Plane, Anchor, Flame, AlertTriangle, Crosshair, RefreshCw, MapPin, X, Building, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { Layers, Plane, Anchor, Flame, AlertTriangle, Crosshair, RefreshCw, MapPin, X, Building, ChevronDown, ChevronUp, ExternalLink, Menu } from 'lucide-react'
 
 mapboxgl.accessToken = MAPBOX_TOKEN
 
@@ -135,6 +135,10 @@ export default function MapPage() {
   const [opPanelOpen, setOpPanelOpen] = useState(false)
   const [routeMode, setRouteMode] = useState(false)
   const [routePoints, setRoutePoints] = useState<[number,number][]>([])
+  
+  // Mobile panel states
+  const [mobileLayersOpen, setMobileLayersOpen] = useState(false)
+  const [mobileOpsOpen, setMobileOpsOpen] = useState(false)
 
   const clearDataMarkers = () => { markersRef.current.forEach(m => m.remove()); markersRef.current = [] }
 
@@ -341,7 +345,7 @@ export default function MapPage() {
       if (m.getSource('op-route')) m.removeSource('op-route')
       m.addSource('op-route', { type:'geojson', data:{ type:'Feature', properties:{}, geometry:geom } })
       m.addLayer({ id:'op-route-glow', type:'line', source:'op-route', layout:{ 'line-join':'round','line-cap':'round' }, paint:{ 'line-color':'#1e6fff', 'line-width':8, 'line-opacity':0.2 } })
-      m.addLayer({ id:'op-route', type:'line', source:'op-route', layout:{ 'line-join':'round','line-cap':'round' }, paint:{ 'line-color':'#1e6fff', 'line-width':2.5, 'line-opacity':0.95, 'line-dasharray':[2,1] } })
+      m.addLayer({ id:'op-route', type:'line', source:'op-route', layout:{ 'line-join':'round','line-cap':'round' }, paint:{ 'line-color':'#1e6fff', 'line-width':2.5, 'line-dasharray':[2,1] } })
       const dist = (d.routes[0].distance/1000).toFixed(1)
       const mins = Math.round(d.routes[0].duration/60)
       const el = document.createElement('div')
@@ -457,12 +461,40 @@ export default function MapPage() {
     { key:'buildings3d', label:'3D Buildings', count:0, color:'#a855f7', icon:Building },
   ]
 
+  // Close mobile panels
+  const closeMobilePanels = () => {
+    setMobileLayersOpen(false)
+    setMobileOpsOpen(false)
+  }
+
   return (
     <div style={{ position:'relative', width:'100%', height:'100%' }}>
       <div ref={mapContainer} style={{ width:'100%', height:'100%' }} />
 
-      {/* Layers panel */}
-      <div style={{ position:'absolute', top:12, left:12, zIndex:10, width:196, ...S.panel }}>
+      {/* Mobile panel overlay */}
+      <div 
+        className={`slide-panel-overlay ${mobileLayersOpen || mobileOpsOpen ? 'slide-panel-overlay-open' : ''}`}
+        onClick={closeMobilePanels}
+      />
+
+      {/* Mobile FAB buttons */}
+      <button 
+        className="mobile-fab mobile-fab-left hide-desktop"
+        onClick={() => { setMobileLayersOpen(true); setMobileOpsOpen(false) }}
+        aria-label="Open layers"
+      >
+        <Layers size={20} />
+      </button>
+      <button 
+        className="mobile-fab mobile-fab-right hide-desktop"
+        onClick={() => { setMobileOpsOpen(true); setMobileLayersOpen(false) }}
+        aria-label="Open operations"
+      >
+        <MapPin size={20} />
+      </button>
+
+      {/* Layers panel - Desktop */}
+      <div className="hide-mobile" style={{ position:'absolute', top:12, left:12, zIndex:10, width:196, ...S.panel }}>
         <button onClick={() => setLayerOpen(v=>!v)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', background:'none', border:'none', cursor:'pointer', color:'#e8edf2' }}>
           <div style={{ display:'flex', alignItems:'center', gap:7 }}><Layers size={13} color="#1e6fff" /><span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Layers</span></div>
           {layerOpen ? <ChevronUp size={11} color="#4a5568" /> : <ChevronDown size={11} color="#4a5568" />}
@@ -491,8 +523,44 @@ export default function MapPage() {
         )}
       </div>
 
-      {/* Operations panel */}
-      <div style={{ position:'absolute', top:12, right:12, zIndex:10, width:220, ...S.panel }}>
+      {/* Layers panel - Mobile slide-out */}
+      <div 
+        className={`slide-panel slide-panel-left hide-desktop ${mobileLayersOpen ? 'slide-panel-open' : ''}`}
+        style={{ width: 280, maxWidth: '85vw', paddingTop: 12 }}
+      >
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 16px', borderBottom:'1px solid #1e2530' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <Layers size={16} color="#1e6fff" />
+            <span style={{ fontSize:12, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#e8edf2' }}>Layers</span>
+          </div>
+          <button onClick={() => setMobileLayersOpen(false)} style={{ background:'none', border:'none', color:'#8b97a8', cursor:'pointer', padding:4 }}>
+            <X size={18} />
+          </button>
+        </div>
+        <div style={{ padding:'12px 16px' }}>
+          {LAYERS_CONFIG.map(l => {
+            const Icon = l.icon
+            const active = layers[l.key as keyof LayerState]
+            return (
+              <label key={l.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', cursor:'pointer', gap:10, borderBottom:'1px solid #1e2530' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <input type="checkbox" checked={active} onChange={e => setLayers(p=>({...p,[l.key]:e.target.checked}))} style={{ width:16, height:16, accentColor:l.color, cursor:'pointer' }} />
+                  <Icon size={16} color={active?l.color:'#4a5568'} />
+                  <span style={{ fontSize:13, color:active?'#e8edf2':'#8b97a8' }}>{l.label}</span>
+                </div>
+                {l.count>0 && <span style={{ fontSize:11, color:l.color, fontFamily:'JetBrains Mono,monospace' }}>{l.count}</span>}
+              </label>
+            )
+          })}
+          <button onClick={() => { refreshAll(); setMobileLayersOpen(false) }} disabled={loading} className="btn btn-primary" style={{ marginTop:16, width:'100%', padding:'10px', fontSize:12, justifyContent:'center' }}>
+            <RefreshCw size={14} style={{ animation:loading?'spin 1s linear infinite':'none' }} />
+            {loading?'Refreshing…':'Refresh Data'}
+          </button>
+        </div>
+      </div>
+
+      {/* Operations panel - Desktop */}
+      <div className="hide-mobile" style={{ position:'absolute', top:12, right:12, zIndex:10, width:220, ...S.panel }}>
         <button onClick={() => setOpPanelOpen(v=>!v)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', background:'none', border:'none', cursor:'pointer', color:'#e8edf2' }}>
           <div style={{ display:'flex', alignItems:'center', gap:7 }}><MapPin size={13} color="#1e6fff" /><span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Operations</span></div>
           {opPanelOpen ? <ChevronUp size={11} color="#4a5568" /> : <ChevronDown size={11} color="#4a5568" />}
@@ -509,7 +577,7 @@ export default function MapPage() {
             </div>
             <div style={{ marginBottom:8 }}>
               <button onClick={() => { setRouteMode(v=>!v); if(routeMode) clearRoute() }} className={`btn ${routeMode?'btn-danger':'btn-ghost'}`} style={{ width:'100%', justifyContent:'center', fontSize:10 }}>
-                {routeMode ? '✕ Cancel Route' : '↝ Plan Covert Route'}
+                {routeMode ? 'Cancel Route' : 'Plan Covert Route'}
               </button>
               {routeMode && <div style={{ fontSize:9, color:'#1e6fff', marginTop:4, textAlign:'center', lineHeight:1.4 }}>Click map to add waypoints. Route auto-calculates.</div>}
               {routePoints.length > 0 && !routeMode && (
@@ -528,7 +596,7 @@ export default function MapPage() {
                         <div style={{ flex:1, fontSize:10, color:'#e8edf2', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{op.label}</div>
                         <button onClick={() => {
                           if (map.current) map.current.flyTo({ center:op.lngLat, zoom:16, pitch:50 })
-                        }} style={{ background:'none', border:'none', color:'#1e6fff', cursor:'pointer', padding:2, fontSize:9 }}>↗</button>
+                        }} style={{ background:'none', border:'none', color:'#1e6fff', cursor:'pointer', padding:2, fontSize:9 }}>Go</button>
                         <button onClick={() => removeOpMarker(op.id)} style={{ background:'none', border:'none', color:'#ff3b3b', cursor:'pointer', padding:2 }}><X size={9} /></button>
                       </div>
                     )
@@ -541,8 +609,67 @@ export default function MapPage() {
         )}
       </div>
 
+      {/* Operations panel - Mobile slide-out */}
+      <div 
+        className={`slide-panel hide-desktop ${mobileOpsOpen ? 'slide-panel-open' : ''}`}
+        style={{ width: 300, maxWidth: '90vw', right: 0, paddingTop: 12 }}
+      >
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 16px', borderBottom:'1px solid #1e2530' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <MapPin size={16} color="#1e6fff" />
+            <span style={{ fontSize:12, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#e8edf2' }}>Operations</span>
+          </div>
+          <button onClick={() => setMobileOpsOpen(false)} style={{ background:'none', border:'none', color:'#8b97a8', cursor:'pointer', padding:4 }}>
+            <X size={18} />
+          </button>
+        </div>
+        <div style={{ padding:'12px 16px', overflowY:'auto', maxHeight:'calc(100vh - 60px)' }}>
+          <div style={{ fontSize:10, color:'#4a5568', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>Mark Location</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:12 }}>
+            {LOCATION_TYPES.slice(0,6).map(lt => (
+              <button key={lt.id} onClick={() => { setAddingMarker(true); setPendingMarker(p => p ? {...p,type:lt.id} : { lngLat:[0,0], type:lt.id, label:'', notes:'' }); setMobileOpsOpen(false) }} className="btn btn-ghost" style={{ padding:'8px 10px', fontSize:11, justifyContent:'flex-start', gap:6, borderLeft:`3px solid ${lt.color}` }}>
+                <span style={{ color:lt.color }}>◆</span> {lt.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <button onClick={() => { setRouteMode(v=>!v); if(routeMode) clearRoute(); setMobileOpsOpen(false) }} className={`btn ${routeMode?'btn-danger':'btn-ghost'}`} style={{ width:'100%', justifyContent:'center', fontSize:12, padding:'10px' }}>
+              {routeMode ? 'Cancel Route' : 'Plan Covert Route'}
+            </button>
+            {routeMode && <div style={{ fontSize:10, color:'#1e6fff', marginTop:6, textAlign:'center', lineHeight:1.4 }}>Click map to add waypoints.</div>}
+            {routePoints.length > 0 && !routeMode && (
+              <button onClick={clearRoute} className="btn btn-ghost" style={{ width:'100%', justifyContent:'center', fontSize:12, marginTop:6, padding:'10px' }}>Clear Route</button>
+            )}
+          </div>
+          {opMarkers.length > 0 && (
+            <div>
+              <div style={{ fontSize:10, color:'#4a5568', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>Marked Locations ({opMarkers.length})</div>
+              <div style={{ maxHeight:200, overflowY:'auto' }}>
+                {opMarkers.map(op => {
+                  const lt = LOCATION_TYPES.find(t=>t.id===op.type)||LOCATION_TYPES[6]
+                  return (
+                    <div key={op.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:'1px solid #1e2530' }}>
+                      <div style={{ width:10, height:10, borderRadius:'50%', background:lt.color, flexShrink:0 }} />
+                      <div style={{ flex:1, fontSize:12, color:'#e8edf2', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{op.label}</div>
+                      <button onClick={() => {
+                        if (map.current) map.current.flyTo({ center:op.lngLat, zoom:16, pitch:50 })
+                        setMobileOpsOpen(false)
+                      }} style={{ background:'#1e2530', border:'1px solid #2d3748', borderRadius:2, color:'#1e6fff', cursor:'pointer', padding:'4px 8px', fontSize:10 }}>Go</button>
+                      <button onClick={() => removeOpMarker(op.id)} style={{ background:'#1e2530', border:'1px solid #2d3748', borderRadius:2, color:'#ff3b3b', cursor:'pointer', padding:'4px 6px' }}><X size={12} /></button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop:12, fontSize:10, color:'#4a5568', lineHeight:1.5, background:'#111519', padding:'8px 10px', borderRadius:2 }}>
+            Long-press or right-click map for location intelligence
+          </div>
+        </div>
+      </div>
+
       {/* Stats bar */}
-      <div style={{ position:'absolute', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:10, background:'rgba(13,17,23,0.92)', border:'1px solid #1e2530', borderRadius:2, padding:'6px 16px', display:'flex', gap:20, backdropFilter:'blur(4px)' }}>
+      <div className="hide-mobile" style={{ position:'absolute', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:10, background:'rgba(13,17,23,0.92)', border:'1px solid #1e2530', borderRadius:2, padding:'6px 16px', display:'flex', gap:20, backdropFilter:'blur(4px)' }}>
         {[{l:'FLIGHTS',v:stats.flights,c:'#1e6fff'},{l:'VESSELS',v:stats.ships,c:'#00d4ff'},{l:'FIRES',v:stats.fires,c:'#ff4500'},{l:'EVENTS',v:stats.disasters,c:'#ffb800'}].map(s => (
           <div key={s.l} style={{ textAlign:'center' }}>
             <div style={{ fontSize:16, fontWeight:700, color:s.c, fontFamily:'JetBrains Mono,monospace' }}>{s.v}</div>
@@ -551,17 +678,27 @@ export default function MapPage() {
         ))}
       </div>
 
+      {/* Mobile stats bar */}
+      <div className="hide-desktop" style={{ position:'absolute', top:8, left:8, right:8, zIndex:5, background:'rgba(13,17,23,0.92)', border:'1px solid #1e2530', borderRadius:2, padding:'6px 12px', display:'flex', justifyContent:'space-around', backdropFilter:'blur(4px)' }}>
+        {[{l:'FLT',v:stats.flights,c:'#1e6fff'},{l:'VES',v:stats.ships,c:'#00d4ff'},{l:'FIR',v:stats.fires,c:'#ff4500'},{l:'EVT',v:stats.disasters,c:'#ffb800'}].map(s => (
+          <div key={s.l} style={{ textAlign:'center' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:s.c, fontFamily:'JetBrains Mono,monospace' }}>{s.v}</div>
+            <div style={{ fontSize:7, color:'#4a5568', letterSpacing:'0.08em', textTransform:'uppercase' }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Add marker dialog */}
       {addingMarker && !pendingMarker && (
-        <div style={{ position:'absolute', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:20, background:'#0d1117', border:'1px solid #1e6fff', borderRadius:2, padding:'8px 16px', fontSize:11, color:'#1e6fff', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+        <div style={{ position:'absolute', bottom:80, left:'50%', transform:'translateX(-50%)', zIndex:20, background:'#0d1117', border:'1px solid #1e6fff', borderRadius:2, padding:'10px 20px', fontSize:12, color:'#1e6fff', letterSpacing:'0.08em', textTransform:'uppercase' }}>
           Click map to place marker
         </div>
       )}
 
       {/* Pending marker form */}
       {pendingMarker && (
-        <div className="modal-overlay">
-          <div className="modal-box" style={{ maxWidth:380 }}>
+        <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) setPendingMarker(null) }}>
+          <div className="modal-box" style={{ maxWidth:380, margin:'16px' }}>
             <div style={S.hdr}>
               <MapPin size={13} color="#1e6fff" />
               Add Operational Marker
@@ -580,15 +717,15 @@ export default function MapPage() {
               </div>
               <div style={{ marginBottom:10 }}>
                 <label style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', display:'block', marginBottom:4 }}>Label *</label>
-                <input value={pendingMarker.label} onChange={e => setPendingMarker(p => p?{...p,label:e.target.value}:p)} placeholder="Site designation / name" style={{ width:'100%', padding:'7px 10px', fontSize:12 }} />
+                <input value={pendingMarker.label} onChange={e => setPendingMarker(p => p?{...p,label:e.target.value}:p)} placeholder="Site designation / name" style={{ width:'100%', padding:'10px 12px', fontSize:14 }} />
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', display:'block', marginBottom:4 }}>Notes</label>
-                <textarea value={pendingMarker.notes} onChange={e => setPendingMarker(p => p?{...p,notes:e.target.value}:p)} placeholder="Intelligence notes…" rows={3} style={{ width:'100%', padding:'7px 10px', fontSize:12, resize:'vertical' }} />
+                <textarea value={pendingMarker.notes} onChange={e => setPendingMarker(p => p?{...p,notes:e.target.value}:p)} placeholder="Intelligence notes…" rows={3} style={{ width:'100%', padding:'10px 12px', fontSize:14, resize:'vertical' }} />
               </div>
               <div style={{ display:'flex', gap:8 }}>
-                <button onClick={saveOpMarker} disabled={!pendingMarker.label.trim()} className="btn btn-primary" style={{ flex:1, justifyContent:'center' }}>Confirm Marker</button>
-                <button onClick={() => setPendingMarker(null)} className="btn btn-ghost">Cancel</button>
+                <button onClick={saveOpMarker} disabled={!pendingMarker.label.trim()} className="btn btn-primary" style={{ flex:1, justifyContent:'center', padding:'10px' }}>Confirm Marker</button>
+                <button onClick={() => setPendingMarker(null)} className="btn btn-ghost" style={{ padding:'10px 16px' }}>Cancel</button>
               </div>
             </div>
           </div>
@@ -597,24 +734,26 @@ export default function MapPage() {
 
       {/* War zone panel */}
       {selectedZone && (
-        <div style={{ position:'absolute', top:12, right:248, zIndex:15, width:280, ...S.panel, maxHeight:'80vh', overflowY:'auto' }}>
-          <div style={S.hdr}>
-            <div style={{ width:7, height:7, borderRadius:'50%', background:'#ff3b3b', animation:'pulse-live 1.5s infinite' }} />
-            Active Conflict
-            <button onClick={() => setSelectedZone(null)} style={{ marginLeft:'auto', background:'none', border:'none', color:'#4a5568', cursor:'pointer' }}><X size={13} /></button>
-          </div>
-          <div style={{ padding:12 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:'#ff3b3b', marginBottom:8 }}>{selectedZone.name}</div>
-            <div style={{ display:'flex', gap:5, marginBottom:10, flexWrap:'wrap' }}>
-              <span className="tag" style={{ background:'#3d0000', color:'#ff3b3b', border:'1px solid #ff3b3b55' }}>{selectedZone.severity}</span>
-              <span className="tag" style={{ background:'#1e2530', color:'#8b97a8' }}>Since {selectedZone.startDate}</span>
+        <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) setSelectedZone(null) }}>
+          <div className="modal-box" style={{ maxWidth:400, margin:'16px' }}>
+            <div style={S.hdr}>
+              <div style={{ width:7, height:7, borderRadius:'50%', background:'#ff3b3b', animation:'pulse-live 1.5s infinite' }} />
+              Active Conflict
+              <button onClick={() => setSelectedZone(null)} style={{ marginLeft:'auto', background:'none', border:'none', color:'#4a5568', cursor:'pointer' }}><X size={13} /></button>
             </div>
-            <p style={{ fontSize:11, color:'#8b97a8', lineHeight:1.6, marginBottom:10 }}>{selectedZone.summary}</p>
-            <div style={{ background:'#0a0c0f', border:'1px solid #1e2530', borderRadius:2, padding:'8px 10px', marginBottom:8 }}>
-              <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>Latest Update</div>
-              <div style={{ fontSize:11, color:'#e8edf2', lineHeight:1.5 }}>{selectedZone.latestUpdate}</div>
+            <div style={{ padding:16 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#ff3b3b', marginBottom:10 }}>{selectedZone.name}</div>
+              <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
+                <span className="tag" style={{ background:'#3d0000', color:'#ff3b3b', border:'1px solid #ff3b3b55' }}>{selectedZone.severity}</span>
+                <span className="tag" style={{ background:'#1e2530', color:'#8b97a8' }}>Since {selectedZone.startDate}</span>
+              </div>
+              <p style={{ fontSize:13, color:'#8b97a8', lineHeight:1.6, marginBottom:12 }}>{selectedZone.summary}</p>
+              <div style={{ background:'#0a0c0f', border:'1px solid #1e2530', borderRadius:2, padding:'10px 12px', marginBottom:10 }}>
+                <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Latest Update</div>
+                <div style={{ fontSize:13, color:'#e8edf2', lineHeight:1.5 }}>{selectedZone.latestUpdate}</div>
+              </div>
+              <div style={{ fontSize:12, color:'#8b97a8' }}>Casualties: <span style={{ color:'#ff8c00', fontFamily:'JetBrains Mono,monospace' }}>{selectedZone.casualties}</span></div>
             </div>
-            <div style={{ fontSize:10, color:'#8b97a8' }}>Casualties: <span style={{ color:'#ff8c00', fontFamily:'JetBrains Mono,monospace' }}>{selectedZone.casualties}</span></div>
           </div>
         </div>
       )}
@@ -622,36 +761,36 @@ export default function MapPage() {
       {/* Location modal */}
       {locationModal && (
         <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) setLocationModal(null) }}>
-          <div className="modal-box">
+          <div className="modal-box" style={{ margin:'16px' }}>
             <div style={S.hdr}>
               <Building size={13} color="#1e6fff" />
               Location Intelligence
               {!locationModal.loading && <span style={{ marginLeft:'auto', fontSize:9, color:'#00ff88' }}>DATA RETRIEVED</span>}
-              <button onClick={() => setLocationModal(null)} style={{ background:'none', border:'none', color:'#4a5568', cursor:'pointer', marginLeft: locationModal.loading ? 'auto' : 4 }}><X size={14} /></button>
+              <button onClick={() => setLocationModal(null)} style={{ background:'none', border:'none', color:'#4a5568', cursor:'pointer', marginLeft: locationModal.loading ? 'auto' : 8 }}><X size={14} /></button>
             </div>
             {locationModal.loading ? (
-              <div style={{ padding:32, display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
+              <div style={{ padding:40, display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
                 <div style={{ width:28, height:28, border:'2px solid #1e2530', borderTop:'2px solid #1e6fff', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize:11, color:'#4a5568' }}>Querying intelligence sources…</span>
+                <span style={{ fontSize:12, color:'#4a5568' }}>Querying intelligence sources...</span>
               </div>
             ) : (
-              <div style={{ padding:16 }}>
+              <div style={{ padding:16, maxHeight:'70vh', overflowY:'auto' }}>
                 {/* Address */}
                 <div style={{ marginBottom:14 }}>
                   <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Location</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#e8edf2', lineHeight:1.4 }}>{locationModal.address}</div>
-                  <div style={{ fontSize:10, color:'#4a5568', marginTop:3, fontFamily:'JetBrains Mono,monospace' }}>{locationModal.lngLat[1].toFixed(6)}, {locationModal.lngLat[0].toFixed(6)}</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'#e8edf2', lineHeight:1.4 }}>{locationModal.address}</div>
+                  <div style={{ fontSize:11, color:'#4a5568', marginTop:4, fontFamily:'JetBrains Mono,monospace' }}>{locationModal.lngLat[1].toFixed(6)}, {locationModal.lngLat[0].toFixed(6)}</div>
                 </div>
 
                 {/* Info grid */}
                 {Object.keys(locationModal.info).filter(k=>!['Google Maps','Satellite View','What3Words'].includes(k)).length > 0 && (
                   <div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Site Data</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:6 }}>
                       {Object.entries(locationModal.info).filter(([k])=>!['Google Maps','Satellite View','What3Words','Full Address','Coordinates'].includes(k)).map(([k,v]) => v ? (
-                        <div key={k} style={{ background:'#111519', border:'1px solid #1e2530', borderRadius:2, padding:'6px 8px' }}>
+                        <div key={k} style={{ background:'#111519', border:'1px solid #1e2530', borderRadius:2, padding:'8px 10px' }}>
                           <div style={{ fontSize:8, color:'#4a5568', letterSpacing:'0.08em', textTransform:'uppercase' }}>{k}</div>
-                          <div style={{ fontSize:11, color:'#e8edf2', marginTop:2 }}>{v}</div>
+                          <div style={{ fontSize:12, color:'#e8edf2', marginTop:2 }}>{v}</div>
                         </div>
                       ) : null)}
                     </div>
@@ -663,8 +802,8 @@ export default function MapPage() {
                   <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>View Location</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                     {['Google Maps','Satellite View','What3Words'].map(k => locationModal.info[k] ? (
-                      <a key={k} href={locationModal.info[k]} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ fontSize:9, padding:'4px 8px', gap:4, textDecoration:'none' }}>
-                        <ExternalLink size={9} />{k}
+                      <a key={k} href={locationModal.info[k]} target="_blank" rel="noreferrer" className="btn btn-ghost" style={{ fontSize:10, padding:'6px 10px', gap:4, textDecoration:'none' }}>
+                        <ExternalLink size={10} />{k}
                       </a>
                     ) : null)}
                   </div>
@@ -676,9 +815,9 @@ export default function MapPage() {
                     <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Ownership & Records</div>
                     {Object.entries(locationModal.ownership).map(([k,v]) => (
                       <div key={k} style={S.row}>
-                        <span style={{ fontSize:10, color:'#4a5568', minWidth:120 }}>{k}</span>
+                        <span style={{ fontSize:11, color:'#4a5568', minWidth:120, flexShrink:0 }}>{k}</span>
                         {v.startsWith('http') ? (
-                          <a href={v} target="_blank" rel="noreferrer" style={{ color:'#1e6fff', fontSize:11, flex:1 }}>Open ↗</a>
+                          <a href={v} target="_blank" rel="noreferrer" style={{ color:'#1e6fff', fontSize:12, flex:1 }}>Open</a>
                         ) : (
                           <span style={S.val}>{v}</span>
                         )}
@@ -691,11 +830,11 @@ export default function MapPage() {
                 <div style={{ marginBottom:14 }}>
                   <div style={{ fontSize:9, color:'#4a5568', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Intelligence / News</div>
                   {locationModal.news.map((n,i) => (
-                    <div key={i} style={{ background:'#111519', border:'1px solid #1e2530', borderRadius:2, padding:'8px 10px', marginBottom:5 }}>
-                      <div style={{ fontSize:12, color:'#e8edf2', marginBottom:3, lineHeight:1.4 }}>{n.title}</div>
+                    <div key={i} style={{ background:'#111519', border:'1px solid #1e2530', borderRadius:2, padding:'10px 12px', marginBottom:6 }}>
+                      <div style={{ fontSize:13, color:'#e8edf2', marginBottom:4, lineHeight:1.4 }}>{n.title}</div>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <span style={{ fontSize:9, color:'#1e6fff', fontWeight:600 }}>{n.source}</span>
-                        <a href={n.url} target="_blank" rel="noreferrer" style={{ color:'#4a5568' }}><ExternalLink size={9} /></a>
+                        <span style={{ fontSize:10, color:'#1e6fff', fontWeight:600 }}>{n.source}</span>
+                        <a href={n.url} target="_blank" rel="noreferrer" style={{ color:'#4a5568' }}><ExternalLink size={10} /></a>
                       </div>
                     </div>
                   ))}
@@ -709,7 +848,7 @@ export default function MapPage() {
                       <button key={lt.id} onClick={() => {
                         setPendingMarker({ lngLat:locationModal.lngLat, type:lt.id, label:locationModal.address.split(',')[0]||'Site', notes:'' })
                         setLocationModal(null)
-                      }} className="btn btn-ghost" style={{ fontSize:9, padding:'4px 8px', borderLeft:`2px solid ${lt.color}`, gap:4 }}>
+                      }} className="btn btn-ghost" style={{ fontSize:10, padding:'6px 10px', borderLeft:`2px solid ${lt.color}`, gap:4 }}>
                         <span style={{ color:lt.color }}>◆</span>{lt.label}
                       </button>
                     ))}
